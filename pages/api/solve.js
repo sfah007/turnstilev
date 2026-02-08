@@ -4,7 +4,7 @@ const chromium = require("@sparticuz/chromium-min");
 const CONFIG = {
   timeout: parseInt(process.env.SOLVER_TIMEOUT || "60000", 10),
   chromiumPackUrl: process.env.CHROMIUM_PACK_URL || 
-    "https://github.com/sfah007/turnstilev/releases/download/v1.0/chromium-pack.tar"
+    "https://github.com/sfah007/turnstilev/releases/download/chromium-pack.tar/chromium-pack.tar"
 };
 
 let cachedExecutablePath = null;
