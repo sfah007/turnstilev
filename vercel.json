@@ -1,7 +1,12 @@
 {
   "functions": {
-    "api/**/*.js": {
-      "maxDuration": 60
+    "pages/api/solve.js": {
+      "maxDuration": 60,
+      "memory": 1024
     }
+  },
+  "env": {
+    "CHROMIUM_PACK_URL": "https://github.com/sfah007/turnstilev/releases/download/chromium-pack.tar/chromium-pack.tar",
+    "NODE_ENV": "production"
   }
 }
