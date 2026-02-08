@@ -1,59 +1,46 @@
 const puppeteer = require("puppeteer-core");
-const chromium = require("@sparticuz/chromium-min");
+const chromium = require("@sparticuz/chromium");
+
+// ============================================================
+// CONFIG
+// ============================================================
 
 const CONFIG = {
   timeout: parseInt(process.env.SOLVER_TIMEOUT || "60000", 10),
-  chromiumPackUrl: process.env.CHROMIUM_PACK_URL || 
-    "https://github.com/sfah007/turnstilev/releases/download/chromium-pack.tar/chromium-pack.tar"
 };
 
-let cachedExecutablePath = null;
-
-async function getExecutablePath() {
-  if (cachedExecutablePath) {
-    console.log("[Chromium] Using cached executable path");
-    return cachedExecutablePath;
-  }
-
-  console.log("[Chromium] Downloading from:", CONFIG.chromiumPackUrl);
-  
-  try {
-    const execPath = await chromium.executablePath(CONFIG.chromiumPackUrl);
-    cachedExecutablePath = execPath;
-    console.log("[Chromium] Ready →", execPath);
-    return execPath;
-  } catch (error) {
-    console.error("[Chromium] Failed:", error);
-    throw error;
-  }
-}
+// ============================================================
+// Browser Launch - محدث لـ Vercel
+// ============================================================
 
 async function launchBrowser() {
   try {
-    const executablePath = await getExecutablePath();
-
+    console.log("[Browser] Launching Chromium...");
+    
+    // إعداد Chromium لـ Vercel
+    chromium.setHeadlessMode = true;
+    chromium.setGraphicsMode = false;
+    
     const browser = await puppeteer.launch({
-      args: [
-        ...chromium.args,
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-gpu",
-        "--single-process",
-        "--no-zygote",
-      ],
-      executablePath,
-      headless: chromium.headless,
+      args: chromium.args,
       defaultViewport: chromium.defaultViewport,
+      executablePath: await chromium.executablePath(),
+      headless: chromium.headless,
       ignoreHTTPSErrors: true,
     });
 
+    console.log("[Browser] Chromium launched successfully");
     return browser;
+    
   } catch (error) {
     console.error("[Browser] Launch failed:", error);
     throw error;
   }
 }
+
+// ============================================================
+// Fake Page
+// ============================================================
 
 function getFakePage(siteKey) {
   return `<!DOCTYPE html>
@@ -72,12 +59,22 @@ turnstile.render('#cf', {
     i.name = 'cf-response';
     i.value = token;
     document.body.appendChild(i);
+  },
+  'error-callback': function() {
+    const err = document.createElement('div');
+    err.id = 'cf-error';
+    err.textContent = 'Error';
+    document.body.appendChild(err);
   }
 });
 </script>
 </body>
 </html>`;
 }
+
+// ============================================================
+// Solver
+// ============================================================
 
 async function solve(url, sitekey) {
   let browser;
@@ -86,6 +83,11 @@ async function solve(url, sitekey) {
   try {
     browser = await launchBrowser();
     const page = await browser.newPage();
+
+    // إعداد User-Agent
+    await page.setUserAgent(
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    );
 
     await page.setRequestInterception(true);
 
@@ -101,8 +103,17 @@ async function solve(url, sitekey) {
       }
     });
 
-    await page.goto(url, { waitUntil: "domcontentloaded" });
+    // معالجة الأخطاء
+    page.on("pageerror", (error) => {
+      console.error("[Page Error]:", error.message);
+    });
 
+    await page.goto(url, { 
+      waitUntil: "domcontentloaded",
+      timeout: 30000 
+    });
+
+    // انتظار الحل
     await page.waitForSelector('[name="cf-response"]', {
       timeout: CONFIG.timeout,
     });
@@ -117,17 +128,25 @@ async function solve(url, sitekey) {
       token,
       duration: Date.now() - start,
     };
-  } catch (e) {
+    
+  } catch (error) {
+    console.error("[Solver] Error:", error.message);
     return {
       success: false,
-      error: e.message,
+      error: error.message,
+      duration: Date.now() - start,
     };
   } finally {
-    if (browser) await browser.close();
+    if (browser) {
+      await browser.close();
+    }
   }
 }
 
-// Vercel Serverless Function handler
+// ============================================================
+// Handler
+// ============================================================
+
 module.exports = async (req, res) => {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -150,6 +169,12 @@ module.exports = async (req, res) => {
   console.log(`[API] Solving Turnstile for ${url}`);
   
   const result = await solve(url, sitekey);
+
+  if (result.success) {
+    console.log(`[API] ✅ Solved in ${result.duration}ms`);
+  } else {
+    console.log(`[API] ❌ Failed: ${result.error}`);
+  }
 
   res.status(result.success ? 200 : 500).json(result);
 };
