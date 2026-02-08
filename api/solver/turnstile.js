@@ -70,7 +70,11 @@ function getFakePage(siteKey) {
 // Browser Launch (Serverless-compatible)
 // ============================================================
 
+
+
 async function launchBrowser(proxy) {
+
+    // Get chromium path (Serverless)
     const executablePath = await chromium.executablePath();
 
     const args = [
@@ -80,36 +84,24 @@ async function launchBrowser(proxy) {
         "--disable-dev-shm-usage",
         "--disable-gpu",
         "--single-process",
-        "--no-zygote",
+        "--no-zygote"
     ];
 
     if (proxy && proxy.host && proxy.port) {
         args.push(`--proxy-server=${proxy.host}:${proxy.port}`);
     }
 
-    return await puppeteer.launch({
+    const browser = await puppeteer.launch({
         args,
         executablePath,
         headless: chromium.headless,
         defaultViewport: chromium.defaultViewport,
-        ignoreHTTPSErrors: true,
+        ignoreHTTPSErrors: true
     });
+
+    return browser;
 }
 
-
-    const executablePath = await chromium.executablePath();
-
-    console.log('[Solver] Chromium path:', executablePath);
-    console.log('[Solver] Launching browser...');
-
-    return await puppeteer.launch({
-        args,
-        defaultViewport: { width: 1280, height: 720 },
-        executablePath,
-        headless: true,
-        protocolTimeout: 60000,
-    });
-}
 
 // ============================================================
 // Solve Turnstile Min - Fake page injection
