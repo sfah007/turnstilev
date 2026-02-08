@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Turnstile Solver API</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+        * { font-family: 'Inter', sans-serif; }
+        code, pre, .font-mono { font-family: 'JetBrains Mono', monospace !important; }
+
+        body { background: #06060a; color: #e2e8f0; overflow-x: hidden; }
+
+        .bg-grid {
+            background-image: 
+                linear-gradient(rgba(99, 102, 241, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(99, 102, 241, 0.03) 1px, transparent 1px);
+            background-size: 60px 60px;
+        }
+
+        .glow-border {
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            background: rgba(15, 15, 25, 0.6);
+            backdrop-filter: blur(10px);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .glow-border:hover {
+            border-color: rgba(99, 102, 241, 0.5);
+            box-shadow: 0 0 40px rgba(99, 102, 241, 0.08);
+        }
+
+        .code-block {
+            background: #0c0c14;
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 14px;
+            overflow: hidden;
+        }
+        .code-header {
+            background: rgba(255,255,255,0.03);
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .method-get { background: linear-gradient(135deg, #059669, #10b981); }
+        .method-post { background: linear-gradient(135deg, #d97706, #f59e0b); }
+
+        .tag-pill {
+            background: rgba(99, 102, 241, 0.1);
+            border: 1px solid rgba(99, 102, 241, 0.25);
+            color: #818cf8;
+        }
+
+        .tab-active {
+            background: rgba(99, 102, 241, 0.15);
+            border-color: rgba(99, 102, 241, 0.6);
+            color: #a5b4fc;
+        }
+        .tab-inactive {
+            background: rgba(20, 20, 35, 0.5);
+            border-color: rgba(255,255,255,0.08);
+            color: #6b7280;
+        }
+        .tab-inactive:hover {
+            background: rgba(99, 102, 241, 0.08);
+            border-color: rgba(99, 102, 241, 0.2);
+            color: #9ca3af;
+        }
+
+        .hero-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(120px);
+            opacity: 0.12;
+            pointer-events: none;
+        }
+
+        .status-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            display: inline-block;
+            animation: pulse-dot 2s infinite;
+        }
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6); }
+            50% { opacity: 0.7; box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+        }
+
+        .copy-btn { transition: all 0.2s; cursor: pointer; }
+        .copy-btn:hover { background: rgba(99, 102, 241, 0.2); color: #c7d2fe; }
+
+        .param-row { transition: background 0.2s; }
+        .param-row:hover { background: rgba(99, 102, 241, 0.04); }
+
+        .response-ok { border-right: 3px solid #10b981; }
+        .response-err { border-right: 3px solid #ef4444; }
+
+        .feature-card {
+            background: linear-gradient(135deg, rgba(99,102,241,0.04), rgba(139,92,246,0.04));
+            border: 1px solid rgba(99,102,241,0.15);
+            transition: all 0.35s cubic-bezier(0.4,0,0.2,1);
+        }
+        .feature-card:hover {
+            border-color: rgba(99,102,241,0.45);
+            transform: translateY(-3px);
+            box-shadow: 0 12px 40px rgba(99,102,241,0.08);
+        }
+
+        .nav-link {
+            transition: all 0.25s;
+            cursor: pointer;
+        }
+        .nav-link:hover { color: #a5b4fc; }
+        .nav-link.active { color: #818cf8; }
+
+        .section-anchor { scroll-margin-top: 80px; }
+
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #1e1e30; border-radius: 10px; }
+
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-up { animation: fadeUp 0.7s ease-out both; }
+        .animate-up-d1 { animation-delay: 0.1s; }
+        .animate-up-d2 { animation-delay: 0.2s; }
+        .animate-up-d3 { animation-delay: 0.3s; }
+
+        .live-badge::before {
+            content: '';
+            display: inline-block;
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: #10b981;
+            margin-left: 6px;
+            animation: pulse-dot 2s infinite;
+        }
+    </style>
+</head>
+<body class="bg-grid min-h-screen">
+
+    <!-- Nav -->
+    <nav class="fixed top-0 left-0 right-0 z-50 border-b border-white/5" style="background: rgba(6,6,10,0.85); backdrop-filter: blur(20px);">
+        <div class="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-indigo-500/15 flex items-center justify-center border border-indigo-500/20">
+                    <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                </div>
+                <span class="font-bold text-white text-sm tracking-tight">Turnstile Solver</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-medium">API v1.0</span>
+            </div>
+            <div class="hidden md:flex items-center gap-6 text-xs text-gray-500">
+                <a href="#overview" class="nav-link">نظرة عامة</a>
+                <a href="#endpoints" class="nav-link">Endpoints</a>
+                <a href="#responses" class="nav-link">الاستجابات</a>
+                <a href="#deploy" class="nav-link">النشر</a>
+                <a href="#test" class="nav-link">تجربة</a>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="live-badge text-xs text-emerald-400 font-medium">Serverless</span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero -->
+    <div class="relative pt-14 overflow-hidden">
+        <div class="hero-orb w-[500px] h-[500px] bg-indigo-600" style="top:-150px;left:15%;"></div>
+        <div class="hero-orb w-[400px] h-[400px] bg-purple-600" style="top:0;right:5%;"></div>
+        <div class="hero-orb w-[300px] h-[300px] bg-blue-600" style="top:200px;left:50%;"></div>
+
+        <div class="max-w-6xl mx-auto px-6 pt-16 pb-16">
+            <div class="text-center">
+                <div class="animate-up inline-flex items-center gap-2 px-4 py-2 rounded-full border border-emerald-500/25 bg-emerald-500/8 mb-8">
+                    <span class="status-dot bg-emerald-500"></span>
+                    <span class="text-sm text-emerald-300">ملف واحد • Serverless • جاهز للنشر</span>
+                </div>
+
+                <h1 class="animate-up animate-up-d1 text-5xl md:text-7xl font-black mb-5 leading-tight">
+                    <span class="bg-gradient-to-l from-white via-indigo-200 to-indigo-500 bg-clip-text text-transparent">Turnstile Solver</span>
+                    <br>
+                    <span class="text-3xl md:text-4xl bg-gradient-to-l from-gray-400 to-gray-600 bg-clip-text text-transparent font-bold">Serverless API</span>
+                </h1>
+
+                <p class="animate-up animate-up-d2 text-base text-gray-400 max-w-2xl mx-auto mb-8 leading-relaxed">
+                    حل تحديات <code class="text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded text-sm">Cloudflare Turnstile</code> 
+                    CAPTCHA عبر API واحد • يعمل على 
+                    <span class="text-white font-semibold">Vercel</span> و 
+                    <span class="text-white font-semibold">Netlify</span>
+                </p>
+
+                <div class="animate-up animate-up-d3 flex flex-wrap justify-center gap-2 mb-10">
+                    <span class="tag-pill px-3 py-1 rounded-full text-xs font-semibold">SOLVER</span>
+                    <span class="tag-pill px-3 py-1 rounded-full text-xs font-semibold">CAPTCHA</span>
+                    <span class="tag-pill px-3 py-1 rounded-full text-xs font-semibold">TURNSTILE</span>
+                    <span class="tag-pill px-3 py-1 rounded-full text-xs font-semibold">SERVERLESS</span>
+                    <span class="tag-pill px-3 py-1 rounded-full text-xs font-semibold">PUPPETEER</span>
+                </div>
+
+                <!-- Quick try -->
+                <div class="animate-up animate-up-d3 max-w-3xl mx-auto">
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="text-xs text-gray-500 font-mono">Quick Start</span>
+                            <button onclick="copyCode('quick-cmd')" class="copy-btn text-xs text-gray-500 px-2 py-1 rounded-lg">نسخ</button>
+                        </div>
+                        <pre class="p-4 overflow-x-auto" dir="ltr"><code id="quick-cmd" class="text-sm text-emerald-400">curl "https://your-app.vercel.app/api/solver/turnstile?url=https://example.com&sitekey=0x4AAAAAAA_xxx"</code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main -->
+    <div class="max-w-6xl mx-auto px-6 pb-24">
+
+        <!-- Overview -->
+        <div id="overview" class="section-anchor mb-16">
+            <h2 class="text-2xl font-bold mb-8 flex items-center gap-3">
+                <span class="w-8 h-8 rounded-lg bg-indigo-500/15 flex items-center justify-center border border-indigo-500/20">
+                    <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                </span>
+                نظرة عامة
+            </h2>
+
+            <div class="grid md:grid-cols-3 gap-4 mb-8">
+                <div class="feature-card rounded-2xl p-6">
+                    <div class="text-3xl mb-3">📄</div>
+                    <h3 class="font-bold text-white mb-2">ملف واحد</h3>
+                    <p class="text-sm text-gray-400 leading-relaxed">كل شيء في ملف <code class="text-indigo-400 text-xs">turnstile.js</code> واحد - API + Solver + Validation</p>
+                </div>
+                <div class="feature-card rounded-2xl p-6">
+                    <div class="text-3xl mb-3">☁️</div>
+                    <h3 class="font-bold text-white mb-2">Serverless</h3>
+                    <p class="text-sm text-gray-400 leading-relaxed">يعمل على Vercel و Netlify بدون سيرفر خاص - نشر بأمر واحد</p>
+                </div>
+                <div class="feature-card rounded-2xl p-6">
+                    <div class="text-3xl mb-3">🔓</div>
+                    <h3 class="font-bold text-white mb-2">Puppeteer</h3>
+                    <p class="text-sm text-gray-400 leading-relaxed">يستخدم <code class="text-indigo-400 text-xs">@sparticuz/chromium</code> المُحسّن لـ Serverless</p>
+                </div>
+            </div>
+
+            <!-- Architecture -->
+            <div class="glow-border rounded-2xl p-6">
+                <h3 class="text-sm font-semibold text-gray-400 mb-5 uppercase tracking-widest">مسار التنفيذ</h3>
+                <div class="flex flex-wrap items-center justify-center gap-3 text-sm" dir="ltr">
+                    <div class="bg-blue-500/10 border border-blue-500/20 rounded-xl px-5 py-3 text-center">
+                        <div class="text-blue-400 font-bold text-xs mb-1">CLIENT</div>
+                        <div class="text-gray-400 text-xs">GET / POST</div>
+                    </div>
+                    <svg class="w-5 h-5 text-gray-700 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+                    <div class="bg-purple-500/10 border border-purple-500/20 rounded-xl px-5 py-3 text-center">
+                        <div class="text-purple-400 font-bold text-xs mb-1">VERCEL / NETLIFY</div>
+                        <div class="text-gray-400 text-xs">Serverless Function</div>
+                    </div>
+                    <svg class="w-5 h-5 text-gray-700 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+                    <div class="bg-yellow-500/10 border border-yellow-500/20 rounded-xl px-5 py-3 text-center">
+                        <div class="text-yellow-400 font-bold text-xs mb-1">PUPPETEER</div>
+                        <div class="text-gray-400 text-xs">@sparticuz/chromium</div>
+                    </div>
+                    <svg class="w-5 h-5 text-gray-700 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+                    <div class="bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-5 py-3 text-center">
+                        <div class="text-emerald-400 font-bold text-xs mb-1">TURNSTILE</div>
+                        <div class="text-gray-400 text-xs">Token ✓</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- File Structure -->
+        <div class="mb-16">
+            <div class="glow-border rounded-2xl p-6">
+                <h3 class="text-sm font-semibold text-gray-400 mb-5 uppercase tracking-widest">هيكل المشروع</h3>
+                <div class="font-mono text-sm space-y-2.5" dir="ltr">
+                    <div class="flex items-center gap-2 text-gray-300"><span class="text-yellow-400">📁</span> project/</div>
+                    <div class="flex items-center gap-2 text-gray-300 ml-4">
+                        <span class="text-gray-600">├──</span> <span class="text-yellow-400">📁</span> <span class="text-gray-400">api/solver/</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-gray-300 ml-12">
+                        <span class="text-gray-600">└──</span> <span class="text-indigo-400">📄</span>
+                        <span class="text-indigo-300">turnstile.js</span>
+                        <span class="text-[10px] bg-indigo-500/10 text-indigo-400 px-2 py-0.5 rounded-full border border-indigo-500/20 ml-2">الملف الرئيسي - API + Solver</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-gray-300 ml-4">
+                        <span class="text-gray-600">├──</span> <span class="text-green-400">📄</span>
+                        <span class="text-green-300">index.html</span>
+                        <span class="text-[10px] text-gray-600 ml-2">التوثيق</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-gray-300 ml-4">
+                        <span class="text-gray-600">├──</span> <span class="text-blue-400">📄</span>
+                        <span class="text-blue-300">package.json</span>
+                        <span class="text-[10px] text-gray-600 ml-2">puppeteer-core + chromium</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-gray-300 ml-4">
+                        <span class="text-gray-600">└──</span> <span class="text-amber-400">📄</span>
+                        <span class="text-amber-300">vercel.json</span>
+                        <span class="text-[10px] text-gray-600 ml-2">إعدادات النشر</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Endpoints -->
+        <div id="endpoints" class="section-anchor mb-16">
+            <h2 class="text-2xl font-bold mb-8 flex items-center gap-3">
+                <span class="w-8 h-8 rounded-lg bg-indigo-500/15 flex items-center justify-center border border-indigo-500/20">
+                    <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                </span>
+                نقاط النهاية (Endpoints)
+            </h2>
+
+            <!-- Tabs -->
+            <div class="flex gap-3 mb-6">
+                <button onclick="switchTab('get')" id="tab-get" class="tab-active px-5 py-2.5 rounded-xl border font-medium text-sm transition-all flex items-center gap-2">
+                    <span class="w-14 text-center py-0.5 rounded-md text-xs font-bold text-white method-get">GET</span>
+                    Query Params
+                </button>
+                <button onclick="switchTab('post')" id="tab-post" class="tab-inactive px-5 py-2.5 rounded-xl border font-medium text-sm transition-all flex items-center gap-2">
+                    <span class="w-14 text-center py-0.5 rounded-md text-xs font-bold text-white method-post">POST</span>
+                    JSON Body
+                </button>
+            </div>
+
+            <!-- GET -->
+            <div id="content-get" class="space-y-5">
+                <div class="glow-border rounded-2xl p-6">
+                    <div class="flex items-center gap-3 mb-4">
+                        <span class="px-3 py-1 rounded-lg text-sm font-bold text-white method-get">GET</span>
+                        <code class="text-gray-300 text-lg">/api/solver/turnstile</code>
+                    </div>
+                    <p class="text-gray-400 mb-6 text-sm">حل تحديات Turnstile CAPTCHA عبر query parameters</p>
+
+                    <div class="code-block mb-6">
+                        <div class="code-header">
+                            <span class="text-xs text-gray-500 font-mono">Example URL</span>
+                            <button onclick="copyCode('get-ex')" class="copy-btn text-xs text-gray-500 px-2 py-1 rounded-lg">نسخ</button>
+                        </div>
+                        <pre class="p-4 overflow-x-auto" dir="ltr"><code id="get-ex" class="text-emerald-400 text-sm">GET /api/solver/turnstile?url=https://spotimate.io&sitekey=0x4AAAAAAA_b5m4iQN755mZw</code></pre>
+                    </div>
+
+                    <!-- Params table -->
+                    <h4 class="text-xs font-semibold text-gray-500 mb-3 uppercase tracking-widest">Parameters</h4>
+                    <div class="rounded-xl border border-white/5 overflow-hidden">
+                        <table class="w-full">
+                            <thead><tr class="bg-white/[0.02]">
+                                <th class="text-right text-[10px] font-semibold text-gray-500 px-4 py-2.5 uppercase">الاسم</th>
+                                <th class="text-right text-[10px] font-semibold text-gray-500 px-4 py-2.5 uppercase">الموقع</th>
+                                <th class="text-right text-[10px] font-semibold text-gray-500 px-4 py-2.5 uppercase">مطلوب</th>
+                                <th class="text-right text-[10px] font-semibold text-gray-500 px-4 py-2.5 uppercase">النوع</th>
+                                <th class="text-right text-[10px] font-semibold text-gray-500 px-4 py-2.5 uppercase">الوصف</th>
+                            </tr></thead>
+                            <tbody>
+                                <tr class="param-row border-t border-white/5">
+                                    <td class="px-4 py-3"><code class="text-indigo-400 text-sm">url</code></td>
+                                    <td class="px-4 py-3 text-xs text-gray-500">query</td>
+                                    <td class="px-4 py-3"><span class="text-[10px] bg-red-500/15 text-red-400 px-2 py-0.5 rounded-full">مطلوب</span></td>
+                                    <td class="px-4 py-3 text-xs text-gray-500 font-mono">string</td>
+                                    <td class="px-4 py-3 text-xs text-gray-400">رابط الموقع (1–1000 حرف)</td>
+                                </tr>
+                                <tr class="param-row border-t border-white/5">
+                                    <td class="px-4 py-3"><code class="text-indigo-400 text-sm">sitekey</code></td>
+                                    <td class="px-4 py-3 text-xs text-gray-500">query</td>
+                                    <td class="px-4 py-3"><span class="text-[10px] bg-red-500/15 text-red-400 px-2 py-0.5 rounded-full">مطلوب</span></td>
+                                    <td class="px-4 py-3 text-xs text-gray-500 font-mono">string</td>
+                                    <td class="px-4 py-3 text-xs text-gray-400">مفتاح Turnstile (1–100 حرف)</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- cURL GET -->
+                <div class="code-block">
+                    <div class="code-header">
+                        <div class="flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full bg-red-500/80"></span>
+                            <span class="w-3 h-3 rounded-full bg-yellow-500/80"></span>
+                            <span class="w-3 h-3 rounded-full bg-green-500/80"></span>
+                            <span class="text-xs text-gray-500 font-mono mr-3">cURL</span>
+                        </div>
+                        <button onclick="copyCode('curl-get')" class="copy-btn text-xs text-gray-500 px-2 py-1 rounded-lg">نسخ</button>
+                    </div>
+                    <pre class="p-4 overflow-x-auto" dir="ltr"><code id="curl-get" class="text-gray-300 text-sm">curl -X GET \
+  "https://your-app.vercel.app/api/solver/turnstile?url=https://spotimate.io&sitekey=0x4AAAAAAA_b5m4iQN755mZw"</code></pre>
+                </div>
+
+                <!-- JS GET -->
+                <div class="code-block">
+                    <div class="code-header">
+                        <div class="flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full bg-red-500/80"></span>
+                            <span class="w-3 h-3 rounded-full bg-yellow-500/80"></span>
+                            <span class="w-3 h-3 rounded-full bg-green-500/80"></span>
+                            <span class="text-xs text-gray-500 font-mono mr-3">JavaScript - fetch</span>
+                        </div>
+                        <button onclick="copyCode('js-get')" class="copy-btn text-xs text-gray-500 px-2 py-1 rounded-lg">نسخ</button>
+                    </div>
+                    <pre class="p-4 overflow-x-auto" dir="ltr"><code id="js-get" class="text-gray-300 text-sm"><span class="text-purple-400">const</span> <span class="text-blue-300">params</span> = <span class="text-purple-400">new</span> <span class="text-yellow-300">URLSearchParams</span>({
+  <span class="text-emerald-400">url</span>: <span class="text-amber-300">'https://spotimate.io'</span>,
+  <span class="text-emerald-400">sitekey</span>: <span class="text-amber-300">'0x4AAAAAAA_b5m4iQN755mZw'</span>
+});
+
+<span class="text-purple-400">const</span> <span class="text-blue-300">res</span> = <span class="text-purple-400">await</span> <span class="text-yellow-300">fetch</span>(<span class="text-amber-300">`/api/solver/turnstile?</span>${<span class="text-blue-300">params</span>}<span class="text-amber-300">`</span>);
+<span class="text-purple-400">const</span> <span class="text-blue-300">data</span> = <span class="text-purple-400">await</span> <span class="text-blue-300">res</span>.<span class="text-yellow-300">json</span>();
+<span class="text-yellow-300">console</span>.<span class="text-yellow-300">log</span>(<span class="text-blue-300">data</span>.<span class="text-blue-300">data</span>.<span class="text-blue-300">token</span>);</code></pre>
+                </div>
+
+                <!-- Python GET -->
+                <div class="code-block">
+                    <div class="code-header">
+                        <div class="flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full bg-red-500/80"></span>
+                            <span class="w-3 h-3 rounded-full bg-yellow-500/80"></span>
+                            <span class="w-3 h-3 rounded-full bg-green-500/80"></span>
+                            <span class="text-xs text-gray-500 font-mono mr-3">Python - requests</span>
+                        </div>
+                        <button onclick="copyCode('py-get')" class="copy-btn text-xs text-gray-500 px-2 py-1 rounded-lg">نسخ</button>
+                    </div>
+                    <pre class="p-4 overflow-x-auto" dir="ltr"><code id="py-get" class="text-gray-300 text-sm"><span class="text-purple-400">import</span> <span class="text-blue-300">requests</span>
+
+<span class="text-blue-300">resp</span> = <span class="text-blue-300">requests</span>.<span class="text-yellow-300">get</span>(<span class="text-amber-300">"https://your-app.vercel.app/api/solver/turnstile"</span>, <span class="text-emerald-400">params</span>={
+    <span class="text-amber-300">"url"</span>: <span class="text-amber-300">"https://spotimate.io"</span>,
+    <span class="text-amber-300">"sitekey"</span>: <span class="text-amber-300">"0x4AAAAAAA_b5m4iQN755mZw"</span>
+})
+
+<span class="text-yellow-300">print</span>(<span class="text-blue-300">resp</span>.<span class="text-yellow-300">json</span>()[<span class="text-amber-300">"data"</span>][<span class="text-amber-300">"token"</span>])</code></pre>
+                </div>
+            </div>
+
+            <!-- POST -->
+            <div id="content-post" class="space-y-5 hidden">
+                <div class="glow-border rounded-2xl p-6">
+                    <div class="flex items-center gap-3 mb-4">
+                        <span class="px-3 py-1 rounded-lg text-sm font-bold text-white method-post">POST</span>
+                        <code class="text-gray-300 text-lg">/api/solver/turnstile</code>
+                    </div>
+                    <p class="text-gray-400 mb-6 text-sm">حل تحديات Turnstile CAPTCHA عبر JSON body</p>
+
+                    <div class="code-block mb-6">
+                        <div class="code-header">
+                            <span class="text-xs text-gray-500 font-mono">Request Body</span>
+                            <button onclick="copyCode('post-body')" class="copy-btn text-xs text-gray-500 px-2 py-1 rounded-lg">نسخ</button>
+                        </div>
+                        <pre class="p-4 overflow-x-auto" dir="ltr"><code id="post-body" class="text-amber-300 text-sm">{
+  "url": "https://spotimate.io/",
+  "sitekey": "0x4AAAAAAA_b5m4iQN755mZw"
+}</code></pre>
+                    </div>
+
+                    <h4 class="text-xs font-semibold text-gray-500 mb-3 uppercase tracking-widest">Body Schema</h4>
+                    <div class="rounded-xl border border-white/5 overflow-hidden">
+                        <table class="w-full">
+                            <thead><tr class="bg-white/[0.02]">
+                                <th class="text-right text-[10px] font-semibold text-gray-500 px-4 py-2.5 uppercase">الحقل</th>
+                                <th class="text-right text-[10px] font-semibold text-gray-500 px-4 py-2.5 uppercase">مطلوب</th>
+                                <th class="text-right text-[10px] font-semibold text-gray-500 px-4 py-2.5 uppercase">النوع</th>
+                                <th class="text-right text-[10px] font-semibold text-gray-500 px-4 py-2.5 uppercase">الوصف</th>
+                            </tr></thead>
+                            <tbody>
+                                <tr class="param-row border-t border-white/5">
+                                    <td class="px-4 py-3"><code class="text-indigo-400 text-sm">url</code></td>
+                                    <td class="px-4 py-3"><span class="text-[10px] bg-red-500/15 text-red-400 px-2 py-0.5 rounded-full">مطلوب</span></td>
+                                    <td class="px-4 py-3 text-xs text-gray-500 font-mono">string</td>
+                                    <td class="px-4 py-3 text-xs text-gray-400">رابط الموقع</td>
+                                </tr>
+                                <tr class="param-row border-t border-white/5">
+                                    <td class="px-4 py-3"><code class="text-indigo-400 text-sm">sitekey</code></td>
+                                    <td class="px-4 py-3"><span class="text-[10px] bg-red-500/15 text-red-400 px-2 py-0.5 rounded-full">مطلوب</span></td>
+                                    <td class="px-4 py-3 text-xs text-gray-500 font-mono">string</td>
+                                    <td class="px-4 py-3 text-xs text-gray-400">مفتاح Turnstile</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- cURL POST -->
+                <div class="code-block">
+                    <div class="code-header">
+                        <div class="flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full bg-red-500/80"></span>
+                            <span class="w-3 h-3 rounded-full bg-yellow-500/80"></span>
+                            <span class="w-3 h-3 rounded-full bg-green-500/80"></span>
+                            <span class="text-xs text-gray-500 font-mono mr-3">cURL</span>
+                        </div>
+                        <button onclick="copyCode('curl-post')" class="copy-btn text-xs text-gray-500 px-2 py-1 rounded-lg">نسخ</button>
+                    </div>
+                    <pre class="p-4 overflow-x-auto" dir="ltr"><code id="curl-post" class="text-gray-300 text-sm">curl -X POST "https://your-app.vercel.app/api/solver/turnstile" \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://spotimate.io/","sitekey":"0x4AAAAAAA_b5m4iQN755mZw"}'</code></pre>
+                </div>
+
+                <!-- JS POST -->
+                <div class="code-block">
+                    <div class="code-header">
+                        <div class="flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full bg-red-500/80"></span>
+                            <span class="w-3 h-3 rounded-full bg-yellow-500/80"></span>
+                            <span class="w-3 h-3 rounded-full bg-green-500/80"></span>
+                            <span class="text-xs text-gray-500 font-mono mr-3">JavaScript - fetch</span>
+                        </div>
+                        <button onclick="copyCode('js-post')" class="copy-btn text-xs text-gray-500 px-2 py-1 rounded-lg">نسخ</button>
+                    </div>
+                    <pre class="p-4 overflow-x-auto" dir="ltr"><code id="js-post" class="text-gray-300 text-sm"><span class="text-purple-400">const</span> <span class="text-blue-300">res</span> = <span class="text-purple-400">await</span> <span class="text-yellow-300">fetch</span>(<span class="text-amber-300">'/api/solver/turnstile'</span>, {
+  <span class="text-emerald-400">method</span>: <span class="text-amber-300">'POST'</span>,
+  <span class="text-emerald-400">headers</span>: { <span class="text-amber-300">'Content-Type'</span>: <span class="text-amber-300">'application/json'</span> },
+  <span class="text-emerald-400">body</span>: <span class="text-yellow-300">JSON</span>.<span class="text-yellow-300">stringify</span>({
+    <span class="text-emerald-400">url</span>: <span class="text-amber-300">'https://spotimate.io/'</span>,
+    <span class="text-emerald-400">sitekey</span>: <span class="text-amber-300">'0x4AAAAAAA_b5m4iQN755mZw'</span>
+  })
+});
+
+<span class="text-purple-400">const</span> <span class="text-blue-300">data</span> = <span class="text-purple-400">await</span> <span class="text-blue-300">res</span>.<span class="text-yellow-300">json</span>();
+<span class="text-yellow-300">console</span>.<span class="text-yellow-300">log</span>(<span class="text-blue-300">data</span>.<span class="text-blue-300">data</span>.<span class="text-blue-300">token</span>);</code></pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- Responses -->
+        <div id="responses" class="section-anchor mb-16">
+            <h2 class="text-2xl font-bold mb-8 flex items-center gap-3">
+                <span class="w-8 h-8 rounded-lg bg-indigo-500/15 flex items-center justify-center border border-indigo-500/20">
+                    <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </span>
+                الاستجابات
+            </h2>
+
+            <div class="grid md:grid-cols-2 gap-5">
+                <div class="code-block response-ok">
+                    <div class="code-header">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                            <span class="text-xs text-emerald-400 font-mono">200 - Success</span>
+                        </div>
+                    </div>
+                    <pre class="p-4 overflow-x-auto" dir="ltr"><code class="text-gray-300 text-xs">{
+  <span class="text-emerald-400">"status"</span>: <span class="text-orange-400">true</span>,
+  <span class="text-emerald-400">"data"</span>: {
+    <span class="text-emerald-400">"url"</span>: <span class="text-amber-300">"https://spotimate.io"</span>,
+    <span class="text-emerald-400">"sitekey"</span>: <span class="text-amber-300">"0x4AAAAAAA_..."</span>,
+    <span class="text-emerald-400">"token"</span>: <span class="text-amber-300">"0.erVk9Kp8..."</span>,
+    <span class="text-emerald-400">"solvedAt"</span>: <span class="text-amber-300">"2025-01-15T..."</span>
+  },
+  <span class="text-emerald-400">"timestamp"</span>: <span class="text-amber-300">"2025-01-15T..."</span>
+}</code></pre>
+                </div>
+
+                <div class="code-block response-err">
+                    <div class="code-header">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-red-500"></span>
+                            <span class="text-xs text-red-400 font-mono">400 / 500 - Error</span>
+                        </div>
+                    </div>
+                    <pre class="p-4 overflow-x-auto" dir="ltr"><code class="text-gray-300 text-xs"><span class="text-gray-600">// 400 - Missing parameter</span>
+{
+  <span class="text-emerald-400">"status"</span>: <span class="text-red-400">false</span>,
+  <span class="text-emerald-400">"error"</span>: <span class="text-amber-300">"URL parameter is required"</span>,
+  <span class="text-emerald-400">"code"</span>: <span class="text-blue-400">400</span>
+}
+
+<span class="text-gray-600">// 500 - Solve failed</span>
+{
+  <span class="text-emerald-400">"status"</span>: <span class="text-red-400">false</span>,
+  <span class="text-emerald-400">"error"</span>: <span class="text-amber-300">"Failed to solve Turnstile"</span>,
+  <span class="text-emerald-400">"code"</span>: <span class="text-blue-400">500</span>
+}</code></pre>
+                </div>
+            </div>
+
+            <!-- Error codes table -->
+            <div class="mt-8 glow-border rounded-2xl overflow-hidden">
+                <table class="w-full">
+                    <thead><tr class="bg-white/[0.02]">
+                        <th class="text-right text-[10px] font-semibold text-gray-500 px-6 py-3 uppercase">الرمز</th>
+                        <th class="text-right text-[10px] font-semibold text-gray-500 px-6 py-3 uppercase">الحالة</th>
+                        <th class="text-right text-[10px] font-semibold text-gray-500 px-6 py-3 uppercase">الوصف</th>
+                    </tr></thead>
+                    <tbody>
+                        <tr class="param-row border-t border-white/5">
+                            <td class="px-6 py-3"><span class="text-xs px-2 py-0.5 rounded-lg bg-amber-500/15 text-amber-400 font-bold">400</span></td>
+                            <td class="px-6 py-3 text-xs text-gray-500 font-mono">Bad Request</td>
+                            <td class="px-6 py-3 text-xs text-gray-400">معلمات مفقودة أو غير صالحة</td>
+                        </tr>
+                        <tr class="param-row border-t border-white/5">
+                            <td class="px-6 py-3"><span class="text-xs px-2 py-0.5 rounded-lg bg-orange-500/15 text-orange-400 font-bold">405</span></td>
+                            <td class="px-6 py-3 text-xs text-gray-500 font-mono">Method Not Allowed</td>
+                            <td class="px-6 py-3 text-xs text-gray-400">فقط GET و POST مدعومان</td>
+                        </tr>
+                        <tr class="param-row border-t border-white/5">
+                            <td class="px-6 py-3"><span class="text-xs px-2 py-0.5 rounded-lg bg-red-500/15 text-red-400 font-bold">500</span></td>
+                            <td class="px-6 py-3 text-xs text-gray-500 font-mono">Server Error</td>
+                            <td class="px-6 py-3 text-xs text-gray-400">فشل في حل تحدي Turnstile</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Deploy Section -->
+        <div id="deploy" class="section-anchor mb-16">
+            <h2 class="text-2xl font-bold mb-8 flex items-center gap-3">
+                <span class="w-8 h-8 rounded-lg bg-indigo-500/15 flex items-center justify-center border border-indigo-500/20">
+                    <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                </span>
+                النشر (Deploy)
+            </h2>
+
+            <div class="space-y-4">
+                <!-- Vercel -->
+                <div class="glow-border rounded-2xl p-6">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-xl bg-black flex items-center justify-center flex-shrink-0 border border-white/10">
+                            <span class="text-white font-black text-lg">▲</span>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="font-bold text-white mb-1 flex items-center gap-2">
+                                النشر على Vercel
+                                <span class="text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/20">موصى به</span>
+                            </h3>
+                            <p class="text-xs text-gray-500 mb-4">أسهل طريقة - يدعم Serverless Functions مع Puppeteer</p>
+                            <div class="code-block">
+                                <pre class="p-4 overflow-x-auto" dir="ltr"><code class="text-gray-300 text-sm"><span class="text-gray-600"># 1. Clone & Install</span>
+git clone your-repo && cd your-repo
+npm install
+
+<span class="text-gray-600"># 2. Deploy</span>
+npx vercel --prod
+
+<span class="text-gray-600"># 3. Test</span>
+curl "https://your-app.vercel.app/api/solver/turnstile?url=https://example.com&sitekey=0x4AAA..."</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Netlify -->
+                <div class="glow-border rounded-2xl p-6">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-xl bg-[#00c7b7]/10 flex items-center justify-center flex-shrink-0 border border-[#00c7b7]/20">
+                            <span class="text-[#00c7b7] font-black text-sm">N</span>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="font-bold text-white mb-1">النشر على Netlify</h3>
+                            <p class="text-xs text-gray-500 mb-4">يحتاج تحويل بسيط لـ Netlify Functions format</p>
+                            <div class="code-block">
+                                <pre class="p-4 overflow-x-auto" dir="ltr"><code class="text-gray-300 text-sm"><span class="text-gray-600"># Move API file to Netlify functions dir</span>
+mkdir -p netlify/functions
+cp api/solver/turnstile.js netlify/functions/turnstile.js
+
+<span class="text-gray-600"># Add netlify.toml</span>
+<span class="text-gray-600"># [functions]</span>
+<span class="text-gray-600">#   directory = "netlify/functions"</span>
+
+netlify deploy --prod</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Env vars -->
+                <div class="glow-border rounded-2xl p-6">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center flex-shrink-0 border border-amber-500/20">
+                            <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="font-bold text-white mb-1">Environment Variables <span class="text-xs text-gray-500 font-normal">(اختياري)</span></h3>
+                            <p class="text-xs text-gray-500 mb-4">لاستخدام Proxy</p>
+                            <div class="code-block">
+                                <pre class="p-4 overflow-x-auto" dir="ltr"><code class="text-gray-300 text-sm"><span class="text-emerald-400">PROXY_HOST</span>=<span class="text-amber-300">proxy.example.com</span>
+<span class="text-emerald-400">PROXY_PORT</span>=<span class="text-amber-300">8080</span>
+<span class="text-emerald-400">PROXY_USERNAME</span>=<span class="text-amber-300">user</span>
+<span class="text-emerald-400">PROXY_PASSWORD</span>=<span class="text-amber-300">pass</span>
+<span class="text-emerald-400">SOLVER_TIMEOUT</span>=<span class="text-amber-300">60000</span></code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Live Test -->
+        <div id="test" class="section-anchor mb-16">
+            <h2 class="text-2xl font-bold mb-8 flex items-center gap-3">
+                <span class="w-8 h-8 rounded-lg bg-indigo-500/15 flex items-center justify-center border border-indigo-500/20">
+                    <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </span>
+                تجربة مباشرة
+            </h2>
+
+            <div class="glow-border rounded-2xl p-6">
+                <div class="grid md:grid-cols-2 gap-4 mb-5">
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-2 font-medium">API Base URL</label>
+                        <input type="text" id="test-base" value="" placeholder="https://your-app.vercel.app" 
+                               class="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-gray-600 focus:outline-none focus:border-indigo-500/50 font-mono" dir="ltr">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-2 font-medium">Method</label>
+                        <select id="test-method" class="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500/50">
+                            <option value="GET">GET</option>
+                            <option value="POST">POST</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid md:grid-cols-2 gap-4 mb-5">
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-2 font-medium">URL</label>
+                        <input type="text" id="test-url" value="https://spotimate.io" 
+                               class="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500/50 font-mono" dir="ltr">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-2 font-medium">Sitekey</label>
+                        <input type="text" id="test-sitekey" value="0x4AAAAAAA_b5m4iQN755mZw" 
+                               class="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500/50 font-mono" dir="ltr">
+                    </div>
+                </div>
+
+                <button onclick="runTest()" id="test-btn" 
+                        class="w-full py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm transition-all flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/></svg>
+                    إرسال الطلب
+                </button>
+
+                <!-- Result -->
+                <div id="test-result" class="mt-5 hidden">
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="text-xs text-gray-500 font-mono" id="result-status">Response</span>
+                            <span class="text-xs text-gray-600 font-mono" id="result-time"></span>
+                        </div>
+                        <pre class="p-4 overflow-x-auto max-h-80" dir="ltr"><code id="result-body" class="text-gray-300 text-xs"></code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Source Code -->
+        <div class="mb-16">
+            <h2 class="text-2xl font-bold mb-8 flex items-center gap-3">
+                <span class="w-8 h-8 rounded-lg bg-indigo-500/15 flex items-center justify-center border border-indigo-500/20">
+                    <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+                </span>
+                الكود المصدري الكامل
+            </h2>
+
+            <div class="code-block">
+                <div class="code-header">
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-red-500/80"></span>
+                        <span class="w-3 h-3 rounded-full bg-yellow-500/80"></span>
+                        <span class="w-3 h-3 rounded-full bg-green-500/80"></span>
+                        <span class="text-xs text-gray-500 font-mono mr-3">api/solver/turnstile.js — الملف الوحيد</span>
+                    </div>
+                    <button onclick="copyCode('full-src')" class="copy-btn text-xs text-gray-500 px-2 py-1 rounded-lg">نسخ الكل</button>
+                </div>
+                <pre class="p-4 overflow-x-auto max-h-[500px]" dir="ltr"><code id="full-src" class="text-gray-300 text-xs"><span class="text-gray-600">/**
+ * Turnstile Solver API — Single Serverless Function
+ * Deploy on Vercel or Netlify
+ */</span>
+
+<span class="text-purple-400">const</span> <span class="text-blue-300">puppeteer</span> = <span class="text-yellow-300">require</span>(<span class="text-amber-300">'puppeteer-core'</span>);
+<span class="text-purple-400">const</span> <span class="text-blue-300">chromium</span>  = <span class="text-yellow-300">require</span>(<span class="text-amber-300">'@sparticuz/chromium'</span>);
+
+<span class="text-gray-600">// ── Fake Page Template ────────────────────────</span>
+<span class="text-purple-400">function</span> <span class="text-yellow-300">getFakePage</span>(<span class="text-blue-300">siteKey</span>) {
+  <span class="text-purple-400">return</span> <span class="text-amber-300">`&lt;!DOCTYPE html&gt;...turnstile widget...`</span>;
+}
+
+<span class="text-gray-600">// ── Launch Browser (Serverless) ───────────────</span>
+<span class="text-purple-400">async function</span> <span class="text-yellow-300">launchBrowser</span>(<span class="text-blue-300">proxy</span>) {
+  <span class="text-purple-400">return await</span> <span class="text-blue-300">puppeteer</span>.<span class="text-yellow-300">launch</span>({
+    <span class="text-emerald-400">args</span>: [...<span class="text-blue-300">chromium</span>.<span class="text-blue-300">args</span>, <span class="text-amber-300">'--no-sandbox'</span>],
+    <span class="text-emerald-400">executablePath</span>: <span class="text-purple-400">await</span> <span class="text-blue-300">chromium</span>.<span class="text-yellow-300">executablePath</span>(),
+    <span class="text-emerald-400">headless</span>: <span class="text-blue-300">chromium</span>.<span class="text-blue-300">headless</span>,
+  });
+}
+
+<span class="text-gray-600">// ── Solve Turnstile ───────────────────────────</span>
+<span class="text-purple-400">async function</span> <span class="text-yellow-300">solveTurnstileMin</span>(<span class="text-blue-300">url</span>, <span class="text-blue-300">siteKey</span>, <span class="text-blue-300">proxy</span>, <span class="text-blue-300">timeout</span>) {
+  <span class="text-purple-400">const</span> <span class="text-blue-300">browser</span> = <span class="text-purple-400">await</span> <span class="text-yellow-300">launchBrowser</span>(<span class="text-blue-300">proxy</span>);
+  <span class="text-gray-600">// 1. Create page</span>
+  <span class="text-gray-600">// 2. Intercept requests → serve fake page</span>
+  <span class="text-gray-600">// 3. Navigate to URL</span>
+  <span class="text-gray-600">// 4. Wait for [name="cf-response"]</span>
+  <span class="text-gray-600">// 5. Extract token → return</span>
+}
+
+<span class="text-gray-600">// ── Main Handler ─────────────────────────────</span>
+<span class="text-blue-300">module</span>.<span class="text-blue-300">exports</span> = <span class="text-purple-400">async function</span>(<span class="text-blue-300">req</span>, <span class="text-blue-300">res</span>) {
+  <span class="text-gray-600">// CORS + Validation + Solve + Response</span>
+  <span class="text-purple-400">const</span> { <span class="text-blue-300">url</span>, <span class="text-blue-300">sitekey</span> } = <span class="text-blue-300">req</span>.<span class="text-blue-300">method</span> === <span class="text-amber-300">'GET'</span>
+    ? <span class="text-blue-300">req</span>.<span class="text-blue-300">query</span>
+    : <span class="text-blue-300">req</span>.<span class="text-blue-300">body</span>;
+
+  <span class="text-purple-400">const</span> <span class="text-blue-300">result</span> = <span class="text-purple-400">await</span> <span class="text-yellow-300">solveTurnstileMin</span>(<span class="text-blue-300">url</span>, <span class="text-blue-300">sitekey</span>);
+  <span class="text-blue-300">res</span>.<span class="text-yellow-300">json</span>({ <span class="text-emerald-400">status</span>: <span class="text-orange-400">true</span>, <span class="text-emerald-400">data</span>: { <span class="text-emerald-400">token</span>: <span class="text-blue-300">result</span> } });
+};</code></pre>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center pt-12 border-t border-white/5">
+            <div class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-indigo-500/20 bg-indigo-500/5 mb-4">
+                <span class="text-indigo-400 text-sm font-medium">ملف واحد • Serverless • جاهز للنشر</span>
+            </div>
+            <p class="text-gray-600 text-xs mt-2">
+                <code class="text-gray-500">api/solver/turnstile.js</code> + 
+                <code class="text-gray-500">vercel.json</code> + 
+                <code class="text-gray-500">package.json</code>
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // Tab switching
+        function switchTab(tab) {
+            ['get', 'post'].forEach(t => {
+                const tabEl = document.getElementById(`tab-${t}`);
+                const contentEl = document.getElementById(`content-${t}`);
+                if (t === tab) {
+                    tabEl.className = tabEl.className.replace('tab-inactive', 'tab-active');
+                    contentEl.classList.remove('hidden');
+                } else {
+                    tabEl.className = tabEl.className.replace('tab-active', 'tab-inactive');
+                    contentEl.classList.add('hidden');
+                }
+            });
+        }
+
+        // Copy
+        function copyCode(id) {
+            const el = document.getElementById(id);
+            const text = el.textContent || el.innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = el.closest('.code-block')?.querySelector('.copy-btn');
+                if (btn) {
+                    const orig = btn.textContent;
+                    btn.textContent = '✓ تم!';
+                    btn.style.color = '#10b981';
+                    setTimeout(() => { btn.textContent = orig; btn.style.color = ''; }, 1500);
+                }
+            });
+        }
+
+        // Live test
+        async function runTest() {
+            const base = document.getElementById('test-base').value.replace(/\/+$/, '');
+            const method = document.getElementById('test-method').value;
+            const url = document.getElementById('test-url').value;
+            const sitekey = document.getElementById('test-sitekey').value;
+            const btn = document.getElementById('test-btn');
+            const resultDiv = document.getElementById('test-result');
+            const resultStatus = document.getElementById('result-status');
+            const resultTime = document.getElementById('result-time');
+            const resultBody = document.getElementById('result-body');
+
+            if (!base) { alert('أدخل API Base URL أولاً'); return; }
+
+            btn.disabled = true;
+            btn.innerHTML = '<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> جاري الحل...';
+
+            const start = Date.now();
+
+            try {
+                let res;
+                if (method === 'GET') {
+                    const params = new URLSearchParams({ url, sitekey });
+                    res = await fetch(`${base}/api/solver/turnstile?${params}`);
+                } else {
+                    res = await fetch(`${base}/api/solver/turnstile`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url, sitekey }),
+                    });
+                }
+
+                const elapsed = Date.now() - start;
+                const data = await res.json();
+
+                resultStatus.textContent = `${res.status} ${res.statusText}`;
+                resultStatus.style.color = res.ok ? '#10b981' : '#ef4444';
+                resultTime.textContent = `${elapsed}ms`;
+                resultBody.textContent = JSON.stringify(data, null, 2);
+                resultDiv.classList.remove('hidden');
+            } catch (err) {
+                resultStatus.textContent = 'Error';
+                resultStatus.style.color = '#ef4444';
+                resultTime.textContent = `${Date.now() - start}ms`;
+                resultBody.textContent = err.message;
+                resultDiv.classList.remove('hidden');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/></svg> إرسال الطلب';
+            }
+        }
+
+        // Active nav on scroll
+        const sections = document.querySelectorAll('.section-anchor');
+        const navLinks = document.querySelectorAll('.nav-link');
+        window.addEventListener('scroll', () => {
+            let current = '';
+            sections.forEach(s => { if (pageYOffset >= s.offsetTop - 120) current = s.id; });
+            navLinks.forEach(l => {
+                l.classList.toggle('active', l.getAttribute('href') === `#${current}`);
+            });
+        });
+        document.querySelectorAll('.nav-link').forEach(l => {
+            l.addEventListener('click', e => {
+                e.preventDefault();
+                document.querySelector(l.getAttribute('href'))?.scrollIntoView({ behavior: 'smooth' });
+            });
+        });
+    </script>
+</body>
+</html>
