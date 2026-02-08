@@ -2,7 +2,7 @@
   "functions": {
     "api/solve.js": {
       "maxDuration": 60,
-      "memory": 1024
+      "memory": 3008
     }
   },
   "rewrites": [
@@ -18,5 +18,9 @@
         { "key": "Access-Control-Allow-Headers", "value": "Content-Type" }
       ]
     }
-  ]
+  ],
+  "env": {
+    "PUPPETEER_SKIP_CHROMIUM_DOWNLOAD": "true",
+    "PUPPETEER_EXECUTABLE_PATH": "/tmp/chromium"
+  }
 }
