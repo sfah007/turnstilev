@@ -1,17 +1,13 @@
 {
-  "name": "turnstile-solver-api",
+  "name": "turnstile-solver",
   "version": "1.0.0",
-  "description": "Cloudflare Turnstile CAPTCHA Solver API - Serverless",
   "private": true,
-  "engines": {
-    "node": ">=18.x"
+  "scripts": {
+    "postinstall": "node scripts/pack-chromium.js"
   },
   "dependencies": {
     "@sparticuz/chromium": "^131.0.1",
+    "@sparticuz/chromium-min": "^131.0.1",
     "puppeteer-core": "^23.11.1"
-  },
-  "scripts": {
-    "dev": "vercel dev",
-    "deploy": "vercel --prod"
   }
 }
